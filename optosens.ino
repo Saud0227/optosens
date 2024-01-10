@@ -32,8 +32,7 @@ void setup(){
 
 	pinMode(9, INPUT);
 
-	pinMode(ENCODER_BUTTON, 0);
-	btn.attach(ENCODER_BUTTON);
+	btn.attach(ENCODER_BUTTON, INPUT_PULLUP);
 	btn.interval(5);
 	u8g2.begin();
 }
@@ -67,10 +66,12 @@ void loop(){
 	}else {
 		digitalWrite(9, 0);
 	}
-	// btn.update();
-	// if(btn.read() == 0){
-	// 	Serial.print("!");
-	// }
+
+	// Serial.println(digitalRead(ENCODER_BUTTON));
+	btn.update();
+	if(btn.read() == 0){
+		Serial.print("!");
+	}
 }
 
 bool lamp1On = false;
