@@ -20,6 +20,29 @@
 #define YELLOW_PIN 12
 #define BLUE_PIN 13
 
+
+
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------
+int lampMode = 0;
+int dispState = 0;
+int sel_max = 0;
+
+bool running = false;
+
+bool timerActive = false;
+int timeUnit = 0;
+int timeToSet = 0;
+
+int delayTime = 0;
+
+bool alternating = false;
+long lastTime = 0;
+long startTime = 0;
+// ------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
 EncoderStepCounter encoder(ENCODER_PIN1, ENCODER_PIN2);
 U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, CLOCK_PIN, DATA_PIN, CS_PIN, U8X8_PIN_NONE);
 void(* resetFunc) (void) = 0;
@@ -42,6 +65,9 @@ void setup(){
 	u8g2.begin();
 
 	splash_screen();
+
+	digitalWrite(YELLOW_PIN, 1);
+	digitalWrite(BLUE_PIN, 1);
 }
 
 
@@ -60,16 +86,84 @@ void splash_screen(){
 
 void loop(){
 	displayLogic();
+	digitalWrite(BUZZER_PIN,0);
 
 	if(digitalRead(E_STOP_PIN)==0){
 		tone(BUZZER_PIN, 2560);
 		delay(2000);
 		resetFunc();
 	}
-
-	digitalWrite(BUZZER_PIN,0);
+	if(running){
+		lamp_logic();
+		if (timerActive){
+			timer_logic();
+		}
+	}else {
+		turn_off_light();
+	}
 }
 
+
+void timer_logic(){
+	if (millis()-startTime > timeToSet*1000 * pow(60, timeUnit)){
+		running = !running;
+		startTime = millis();
+		buzz();
+	}
+}
+
+
+void lamp_logic(){
+	if (running){
+		if (delayTime > 0) {
+			if (millis() - lastTime > delayTime){
+				lastTime = millis();
+				alternating = !alternating;
+				if (!(!alternating && lampMode != 2)){
+					turn_on_light();
+				}else {
+					turn_off_light();
+				}
+			}
+		}else{
+			turn_on_light();
+		}
+	}else {
+		turn_off_light();
+	}
+}
+
+
+void turn_on_light(){
+	switch (lampMode){
+		case 0:
+			digitalWrite(YELLOW_PIN, 1);
+			digitalWrite(BLUE_PIN, 0);
+			break;
+		case 1:
+			digitalWrite(YELLOW_PIN, 0);
+			digitalWrite(BLUE_PIN, 1);
+			break;
+		case 2:
+			if (alternating){
+				digitalWrite(YELLOW_PIN, 0);
+				digitalWrite(BLUE_PIN, 1);
+			}else {
+				digitalWrite(YELLOW_PIN, 1);
+				digitalWrite(BLUE_PIN, 0);
+			}
+			break;
+		case 3:
+			digitalWrite(YELLOW_PIN, 1);
+			digitalWrite(BLUE_PIN, 1);
+			break;
+	}
+}
+
+void turn_off_light(){
+	digitalWrite(YELLOW_PIN, 0);
+	digitalWrite(BLUE_PIN, 0);
+}
 
 void buzz(){
 	tone(BUZZER_PIN, 2560);
@@ -77,19 +171,6 @@ void buzz(){
 	noTone(BUZZER_PIN);
 	delay(20);
 }
-
-// ------------------------------------------------------------------------------------------------------------------------------------------------------
-int lampMode = 0;
-int dispState = 0;
-int sel_max = 0;
-
-bool running = false;
-
-bool timerActive = false;
-int timeUnit = 0;
-int timeToSet = 0;
-
-int delayTime = 0;
 
 
 void string_center(String in_string, int y){
@@ -134,7 +215,7 @@ bool last_state = false;
 void btn(){
 	bool c_state = !digitalRead(ENCODER_BUTTON);
 	if (last_state != c_state){
-		if (c_state) {
+		if (c_state && !(running && position > 1 && dispState == 1)){
 			press();
 		}
 		last_state = c_state;
@@ -151,7 +232,7 @@ void press(){
 
 
 
-void draw(void) {
+void draw() {
 	// graphic commands to redraw the complete screen should be placed here
 	u8g2.setFont(u8g2_font_nine_by_five_nbp_tf);
 	// u8g2.drawStr(5,44, String(position).c_str());
@@ -188,6 +269,7 @@ void changeView(){
 					break;
 				case 1:
 					running = !running;
+					startTime = millis();
 					dispState = 0;
 					sel_max = 0;
 					buzz();
@@ -292,7 +374,6 @@ void selectorBase(){
 	u8g2.setFont(u8g2_font_nine_by_five_nbp_tf);
 	u8g2.drawStr(8,10,"Back");
 }
-
 
 void drawMainMenu(){
 	selectorBase();
